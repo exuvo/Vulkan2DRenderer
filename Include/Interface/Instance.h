@@ -463,7 +463,7 @@ public:
 	///				false if something went wrong
 	VK2D_API bool										VK2D_APIENTRY						IsGood() const;
 
-private:
+public:
 	std::unique_ptr<vk2d::_internal::InstanceImpl>		impl;
 };
 

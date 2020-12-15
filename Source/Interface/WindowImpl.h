@@ -219,7 +219,7 @@ public:
 
 	bool														IsGood();
 
-private:
+public:
 	bool														RecreateWindowSizeDependantResources();
 	bool														CreateGLFWWindow();
 	bool														CreateSurface();
