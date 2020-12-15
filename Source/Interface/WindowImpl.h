@@ -173,43 +173,43 @@ public:
 		const std::vector<vk2d::Vertex>						&	vertices,
 		const std::vector<float>							&	texture_channel_weights,
 		const std::vector<vk2d::Matrix4f>					&	transformations,
-		bool													solid						= true,
-		vk2d::Texture										*	texture						= nullptr,
-		vk2d::Sampler										*	sampler						= nullptr );
+		bool													solid,
+		vk2d::Texture										*	texture,
+		vk2d::Sampler										*	sampler );
 
 	void														DrawTriangleList(
 		const std::vector<uint32_t>							&	raw_indices,
 		const std::vector<vk2d::Vertex>						&	vertices,
 		const std::vector<float>							&	texture_channel_weights,
 		const std::vector<vk2d::Matrix4f>					&	transformations,
-		bool													solid						= true,
-		vk2d::Texture										*	texture						= nullptr,
-		vk2d::Sampler										*	sampler						= nullptr );
+		bool													solid,
+		vk2d::Texture										*	texture,
+		vk2d::Sampler										*	sampler);
 
 	void														DrawLineList(
 		const std::vector<vk2d::VertexIndex_2>				&	indices,
 		const std::vector<vk2d::Vertex>						&	vertices,
 		const std::vector<float>							&	texture_channel_weights,
 		const std::vector<vk2d::Matrix4f>					&	transformations,
-		vk2d::Texture										*	texture						= nullptr,
-		vk2d::Sampler										*	sampler						= nullptr,
-		float													line_width					= 1.0f );
+		vk2d::Texture										*	texture,
+		vk2d::Sampler										*	sampler,
+		float													line_width );
 
 	void														DrawLineList(
 		const std::vector<uint32_t>							&	raw_indices,
 		const std::vector<vk2d::Vertex>						&	vertices,
 		const std::vector<float>							&	texture_channel_weights,
 		const std::vector<vk2d::Matrix4f>					&	transformations,
-		vk2d::Texture										*	texture						= nullptr,
-		vk2d::Sampler										*	sampler						= nullptr,
-		float													line_width					= 1.0f );
+		vk2d::Texture										*	texture,
+		vk2d::Sampler										*	sampler,
+		float													line_width );
 
 	void														DrawPointList(
 		const std::vector<vk2d::Vertex>						&	vertices,
 		const std::vector<float>							&	texture_channel_weights,
 		const std::vector<vk2d::Matrix4f>					&	transformations,
-		vk2d::Texture										*	texture						= nullptr,
-		vk2d::Sampler										*	sampler						= nullptr );
+		vk2d::Texture										*	texture,
+		vk2d::Sampler										*	sampler );
 
 	void														DrawMesh(
 		const vk2d::Mesh									&	mesh,
@@ -260,13 +260,6 @@ public:
 	void														CmdBindGraphicsPipelineIfDifferent(
 		VkCommandBuffer											command_buffer,
 		const vk2d::_internal::GraphicsPipelineSettings		&	pipeline_settings );
-
-	/*
-	void														CmdBindTextureSamplerIfDifferent(
-		VkCommandBuffer											command_buffer,
-		vk2d::Sampler										*	sampler,
-		vk2d::Texture										*	texture );
-	*/
 
 	void														CmdBindSamplerIfDifferent(
 		VkCommandBuffer											command_buffer,
@@ -364,25 +357,25 @@ public:
 																render_target_texture_dependencies			= {};
 
 	enum class ScreenshotState : uint32_t {
-		IDLE					= 0,	// doing nothing
-		REQUESTED,						// screenshot requested but nothing done yet
-		WAITING_RENDER,					// waiting for rendering to happen
-		WAITING_FILE_WRITE,				// waiting for file to be written
-		WAITING_EVENT_REPORT,			// waiting for system to report event in main thread after saving
+		IDLE					= 0,			// doing nothing
+		REQUESTED,								// screenshot requested but nothing done yet
+		WAITING_RENDER,							// waiting for rendering to happen
+		WAITING_FILE_WRITE,						// waiting for file to be written
+		WAITING_EVENT_REPORT,					// waiting for system to report event in main thread after saving
 		IDLE_ERROR				= UINT32_MAX,	// error state, screenshots disabled
 	};
-	std::atomic<vk2d::_internal::WindowImpl::ScreenshotState>	screenshot_state						= {};
-	std::filesystem::path										screenshot_save_path					= {};
-	vk2d::ImageData												screenshot_save_data					= {};
-	bool														screenshot_alpha						= {};
-	vk2d::_internal::CompleteImageResource						screenshot_image						= {};
-	vk2d::_internal::CompleteBufferResource						screenshot_buffer						= {};
-	uint32_t													screenshot_swapchain_id					= {};
-	std::atomic_bool											screenshot_being_saved					= {};
-	bool														screenshot_event_error					= {};
-	std::string													screenshot_event_message				= {};
 
-	bool														is_good									= {};
+	std::atomic<vk2d::_internal::WindowImpl::ScreenshotState>	screenshot_state							= {};
+	std::filesystem::path										screenshot_save_path						= {};
+	vk2d::ImageData												screenshot_save_data						= {};
+	bool														screenshot_alpha							= {};
+	vk2d::_internal::CompleteImageResource						screenshot_image							= {};
+	vk2d::_internal::CompleteBufferResource						screenshot_buffer							= {};
+	uint32_t													screenshot_swapchain_id						= {};
+	bool														screenshot_event_error						= {};
+	std::string													screenshot_event_message					= {};
+
+	bool														is_good										= {};
 };
 
 
@@ -436,7 +429,7 @@ public:
 	bool										IsGood();
 
 	vk2d::_internal::InstanceImpl			*	GetInstance();
-	const std::vector<vk2d::Color8>			&	GetPixelData();
+	const std::vector<vk2d::Color8>			&	GetTexelData();
 	GLFWcursor								*	GetGLFWcursor();
 	vk2d::Vector2u								GetSize();
 	vk2d::Vector2i								GetHotSpot();
@@ -489,10 +482,10 @@ public:
 	void												SetGamma(
 		float											gamma );
 
-	vk2d::GammaRamp										GetGammaRamp();
+	std::vector<vk2d::GammaRampNode>					GetGammaRamp();
 
 	void												SetGammaRamp(
-		const vk2d::GammaRamp						&	ramp );
+		const std::vector<vk2d::GammaRampNode>		&	ramp );
 
 	vk2d::_internal::MonitorImpl					&	operator=(
 		const vk2d::_internal::MonitorImpl			&	other )								= default;

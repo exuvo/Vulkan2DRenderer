@@ -294,7 +294,8 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawTriangleList(
 		texture_channel_weights,
 		transformations,
 		solid,
-		texture
+		texture,
+		sampler
 	);
 }
 
@@ -304,7 +305,8 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawLineList(
 	const std::vector<float>				&	texture_channel_weights,
 	const std::vector<vk2d::Matrix4f>		&	transformations,
 	vk2d::Texture							*	texture,
-	vk2d::Sampler							*	sampler
+	vk2d::Sampler							*	sampler,
+	float										line_width
 )
 {
 	impl->DrawLineList(
@@ -312,7 +314,9 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawLineList(
 		vertices,
 		texture_channel_weights,
 		transformations,
-		texture
+		texture,
+		sampler,
+		line_width
 	);
 }
 
@@ -328,7 +332,8 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawPointList(
 		vertices,
 		texture_channel_weights,
 		transformations,
-		texture
+		texture,
+		sampler
 	);
 }
 
@@ -349,7 +354,8 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawPoint(
 VK2D_API void VK2D_APIENTRY vk2d::Window::DrawLine(
 	vk2d::Vector2f					point_1,
 	vk2d::Vector2f					point_2,
-	vk2d::Colorf					color
+	vk2d::Colorf					color,
+	float							line_width
 )
 {
 	auto mesh = vk2d::GenerateLineMeshFromList(
@@ -357,6 +363,7 @@ VK2D_API void VK2D_APIENTRY vk2d::Window::DrawLine(
 		{ { 0, 1 } }
 	);
 	mesh.SetVertexColor( color );
+	mesh.SetLineWidth( line_width );
 	impl->DrawMesh( mesh, { vk2d::Matrix4f( 1.0f ) } );
 }
 
@@ -540,7 +547,7 @@ VK2D_API vk2d::Cursor::Cursor(
 	impl		= std::make_unique<vk2d::_internal::CursorImpl>(
 		other.impl->GetInstance(),
 		other.impl->GetSize(),
-		other.impl->GetPixelData(),
+		other.impl->GetTexelData(),
 		other.impl->GetHotSpot()
 	);
 	if( !impl || !impl->IsGood() ) {
@@ -565,7 +572,7 @@ VK2D_API vk2d::Cursor & VK2D_APIENTRY vk2d::Cursor::operator=(
 	impl		= std::make_unique<vk2d::_internal::CursorImpl>(
 		other.impl->GetInstance(),
 		other.impl->GetSize(),
-		other.impl->GetPixelData(),
+		other.impl->GetTexelData(),
 		other.impl->GetHotSpot()
 	);
 	if( !impl | !impl->IsGood() ) {
@@ -594,9 +601,9 @@ VK2D_API vk2d::Vector2i VK2D_APIENTRY vk2d::Cursor::GetHotSpot()
 	return impl->GetHotSpot();
 }
 
-VK2D_API std::vector<vk2d::Color8> VK2D_APIENTRY vk2d::Cursor::GetPixelData()
+VK2D_API std::vector<vk2d::Color8> VK2D_APIENTRY vk2d::Cursor::GetTexelData()
 {
-	return impl->GetPixelData();
+	return impl->GetTexelData();
 }
 
 VK2D_API bool VK2D_APIENTRY vk2d::Cursor::IsGood() const
@@ -667,13 +674,13 @@ VK2D_API void VK2D_APIENTRY vk2d::Monitor::SetGamma(
 	impl->SetGamma( gamma );
 }
 
-VK2D_API vk2d::GammaRamp VK2D_APIENTRY vk2d::Monitor::GetGammaRamp()
+VK2D_API std::vector<vk2d::GammaRampNode> VK2D_APIENTRY vk2d::Monitor::GetGammaRamp()
 {
 	return impl->GetGammaRamp();
 }
 
 VK2D_API void VK2D_APIENTRY vk2d::Monitor::SetGammaRamp(
-	const vk2d::GammaRamp		&	ramp
+	const std::vector<vk2d::GammaRampNode>		&	ramp
 )
 {
 	impl->SetGammaRamp( ramp );
@@ -1055,7 +1062,7 @@ vk2d::_internal::WindowImpl::~WindowImpl()
 {
 	vkDeviceWaitIdle( vk_device );
 
-	while( screenshot_being_saved ) {
+	while( screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::WAITING_FILE_WRITE ) {
 		std::this_thread::sleep_for( std::chrono::microseconds( 500 ) );
 	};
 	if( screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT ) {
@@ -1781,6 +1788,8 @@ void vk2d::_internal::WindowImpl::TakeScreenshotToFile(
 		screenshot_save_path	= save_path;
 		screenshot_state		= vk2d::_internal::WindowImpl::ScreenshotState::REQUESTED;
 		screenshot_alpha		= include_alpha;
+	} else {
+		instance->Report( vk2d::ReportSeverity::INFO, "Screenshot request ignored: Previous screenshot has not yet been processed." );
 	}
 }
 
@@ -1789,8 +1798,11 @@ void vk2d::_internal::WindowImpl::TakeScreenshotToData(
 )
 {
 	if( screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::IDLE ) {
+		screenshot_save_path	= "";
 		screenshot_state		= vk2d::_internal::WindowImpl::ScreenshotState::REQUESTED;
 		screenshot_alpha		= include_alpha;
+	} else {
+		instance->Report( vk2d::ReportSeverity::INFO, "Screenshot request ignored: Previous screenshot has not yet been processed." );
 	}
 }
 
@@ -2072,8 +2084,6 @@ void vk2d::_internal::WindowImpl::DrawTriangleList(
 	vk2d::Sampler							*	sampler
 )
 {
-	assert( std::size( transformations ) );
-
 	auto index_count	= uint32_t( indices.size() * 3 );
 	std::vector<uint32_t> raw_indices;
 	raw_indices.resize( index_count );
@@ -2104,8 +2114,6 @@ void vk2d::_internal::WindowImpl::DrawTriangleList(
 	vk2d::Sampler							*	sampler
 )
 {
-	assert( std::size( transformations ) );
-
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -2227,8 +2235,6 @@ void vk2d::_internal::WindowImpl::DrawLineList(
 	float										line_width
 )
 {
-	assert( std::size( transformations ) );
-
 	auto index_count	= uint32_t( indices.size() * 2 );
 	std::vector<uint32_t> raw_indices;
 	raw_indices.resize( index_count );
@@ -2258,8 +2264,6 @@ void vk2d::_internal::WindowImpl::DrawLineList(
 	float										line_width
 )
 {
-	assert( std::size( transformations ) );
-
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -2302,6 +2306,10 @@ void vk2d::_internal::WindowImpl::DrawLineList(
 		);
 	}
 
+	CmdSetLineWidthIfDifferent(
+		command_buffer,
+		line_width
+	);
 	CmdBindSamplerIfDifferent(
 		command_buffer,
 		sampler
@@ -2364,8 +2372,6 @@ void vk2d::_internal::WindowImpl::DrawPointList(
 	vk2d::Sampler							*	sampler
 )
 {
-	assert( std::size( transformations ) );
-
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -2464,8 +2470,6 @@ void vk2d::_internal::WindowImpl::DrawMesh(
 	const vk2d::Mesh						&	mesh,
 	const std::vector<vk2d::Matrix4f>		&	transformations )
 {
-	assert( std::size( transformations ) );
-
 	if( mesh.vertices.size() == 0 ) return;
 
 	switch( mesh.mesh_type ) {
@@ -2539,112 +2543,95 @@ public:
 		assert( window->screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::WAITING_FILE_WRITE );
 
 		auto path				= window->screenshot_save_path;
-		auto pixel_count		= VkDeviceSize( window->extent.width ) * VkDeviceSize( window->extent.height );
+		auto extent				= window->screenshot_save_data.size;
+		auto pixel_count		= VkDeviceSize( extent.x ) * VkDeviceSize( extent.y );
 
-		// Try to map the memory for screenshot buffer data.
-		auto pixel_rgba_data = window->screenshot_buffer.memory.Map<uint8_t>();
-		if( !pixel_rgba_data ) {
-			window->instance->Report( vk2d::ReportSeverity::NON_CRITICAL_ERROR, "Internal error: Cannot save screenshot, cannot map screenshot buffer memory!" );
-			window->screenshot_event_error			= true;
-			window->screenshot_event_message		= "Internal error: Cannot map buffer data.";
-			window->screenshot_state				= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT;
-			window->screenshot_being_saved			= false;
-			return;
-		}
-		auto screenshot_data	= pixel_rgba_data;
+		auto screenshot_data	= reinterpret_cast<uint8_t*>( window->screenshot_save_data.data.data() );
 		int pixel_channels		= 4;
 
-		if( !path.empty() ) {
-			// Prepare for if we don't want to save the alpha channel.
-			std::vector<uint8_t> pixel_rgb_data;
-			if( !window->screenshot_alpha ) {
-				pixel_rgb_data.resize( pixel_count * 3 );
-				for( VkDeviceSize i = 0; i < pixel_count; ++i ) {
-					auto pixel_rgba_offset = 4 * i;
-					auto pixel_rgb_offset = 3 * i;
-					pixel_rgb_data[ pixel_rgb_offset + 0 ] = pixel_rgba_data[ pixel_rgba_offset + 0 ];
-					pixel_rgb_data[ pixel_rgb_offset + 1 ] = pixel_rgba_data[ pixel_rgba_offset + 1 ];
-					pixel_rgb_data[ pixel_rgb_offset + 2 ] = pixel_rgba_data[ pixel_rgba_offset + 2 ];
-				}
-				screenshot_data = pixel_rgb_data.data();
-				pixel_channels = 3;
+		// Prepare for if we don't want to save the alpha channel.
+		std::vector<uint8_t> pixel_rgb_data;
+		if( !window->screenshot_alpha ) {
+			pixel_rgb_data.resize( pixel_count * 3 );
+			for( VkDeviceSize i = 0; i < pixel_count; ++i ) {
+//				auto pixel_rgba_offset = 4 * i;
+				auto pixel_rgb_offset = 3 * i;
+				pixel_rgb_data[ pixel_rgb_offset + 0 ] = window->screenshot_save_data.data[ i ].r;
+				pixel_rgb_data[ pixel_rgb_offset + 1 ] = window->screenshot_save_data.data[ i ].g;
+				pixel_rgb_data[ pixel_rgb_offset + 2 ] = window->screenshot_save_data.data[ i ].b;
 			}
-
-			int stbi_write_success = 0;
-			auto extension = path.extension();
-			if( extension == ".png" ) {
-				stbi_write_success = stbi_write_png(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data,
-					0
-				);
-			} else if( extension == ".bmp" ) {
-				stbi_write_success = stbi_write_bmp(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data
-				);
-			} else if( extension == ".tga" ) {
-				stbi_write_success = stbi_write_tga(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data
-				);
-			} else if( extension == ".jpg" ) {
-				stbi_write_success = stbi_write_jpg(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data,
-					90
-				);
-			} else if( extension == ".jpeg" ) {
-				stbi_write_success = stbi_write_jpg(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data,
-					90
-				);
-			} else {
-				window->instance->Report( vk2d::ReportSeverity::INFO, "Screenshot extension was not known, saving screenshot as .png" );
-				path += ".png";
-				stbi_write_success = stbi_write_png(
-					path.string().c_str(),
-					int( window->extent.width ),
-					int( window->extent.height ),
-					pixel_channels,
-					screenshot_data,
-					0
-				);
-			}
-
-			if( stbi_write_success ) {
-				window->screenshot_event_error = false;
-				window->screenshot_event_message = std::string( "Screenshot successfully saved at: " ) + path.string();
-			} else {
-				window->instance->Report( vk2d::ReportSeverity::WARNING, std::string( "Cannot save screenshot: '" ) + path.string() + "'" );
-				window->screenshot_event_error = true;
-				window->screenshot_event_message = std::string( "Cannot save screenshot '" ) + path.string() + "'";
-			}
-		} else {
-			window->screenshot_save_data.size		= window->GetSize();
-			window->screenshot_save_data.data.resize( window->GetSize().x * window->GetSize().y * sizeof( vk2d::Color8 ) );
-			std::memcpy( window->screenshot_save_data.data.data(), pixel_rgba_data, pixel_count * pixel_channels );
+			screenshot_data = pixel_rgb_data.data();
+			pixel_channels = 3;
 		}
 
-		window->screenshot_buffer.memory.Unmap();
+		int stbi_write_success = 0;
+		auto extension = path.extension();
+		if( extension == ".png" ) {
+			stbi_write_success = stbi_write_png(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data,
+				0
+			);
+		} else if( extension == ".bmp" ) {
+			stbi_write_success = stbi_write_bmp(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data
+			);
+		} else if( extension == ".tga" ) {
+			stbi_write_success = stbi_write_tga(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data
+			);
+		} else if( extension == ".jpg" ) {
+			stbi_write_success = stbi_write_jpg(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data,
+				90
+			);
+		} else if( extension == ".jpeg" ) {
+			stbi_write_success = stbi_write_jpg(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data,
+				90
+			);
+		} else {
+			window->instance->Report( vk2d::ReportSeverity::INFO, "Screenshot extension was not known, saving screenshot as .png" );
+			path += ".png";
+			stbi_write_success = stbi_write_png(
+				path.string().c_str(),
+				int( extent.x ),
+				int( extent.y ),
+				pixel_channels,
+				screenshot_data,
+				0
+			);
+		}
+
+		if( stbi_write_success ) {
+			window->screenshot_event_error = false;
+			window->screenshot_event_message = std::string( "Screenshot successfully saved at: " ) + path.string();
+		} else {
+			window->instance->Report( vk2d::ReportSeverity::WARNING, std::string( "Cannot save screenshot: '" ) + path.string() + "'" );
+			window->screenshot_event_error = true;
+			window->screenshot_event_message = std::string( "Cannot save screenshot '" ) + path.string() + "'";
+		}
+
 		window->screenshot_state					= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT;
-		window->screenshot_being_saved				= false;
 	}
 
 	vk2d::_internal::WindowImpl			*	window			= {};
@@ -2693,13 +2680,30 @@ bool vk2d::_internal::WindowImpl::SynchronizeFrame()
 		{
 			if( screenshot_state			== vk2d::_internal::WindowImpl::ScreenshotState::WAITING_RENDER &&
 				screenshot_swapchain_id		== previous_image ) {
+				// Can get the screenshot data now.
+				{
+					screenshot_save_data.size = { extent.width, extent.height };
+					screenshot_save_data.data.resize( extent.width * extent.height );
+					auto mapped_data = screenshot_buffer.memory.Map<vk2d::Color8>();
+					if( mapped_data ) {
+						std::memcpy( screenshot_save_data.data.data(), mapped_data, screenshot_save_data.data.size() * sizeof( vk2d::Color8 ) );
+						screenshot_buffer.memory.Unmap();
 
-				screenshot_state			= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_FILE_WRITE;
-				screenshot_being_saved		= true;
-
-				instance->GetThreadPool()->ScheduleTask(
-					std::make_unique<vk2d::_internal::ScreenshotSaverTask>( this ),
-					instance->GetGeneralThreads() );
+						if( screenshot_save_path.empty() ) {
+							screenshot_state		= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT;
+						} else {
+							screenshot_state		= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_FILE_WRITE;
+							instance->GetThreadPool()->ScheduleTask(
+								std::make_unique<vk2d::_internal::ScreenshotSaverTask>( this ),
+								instance->GetGeneralThreads() );
+						}
+					} else {
+						instance->Report( vk2d::ReportSeverity::NON_CRITICAL_ERROR, "Internal error: Cannot save screenshot, cannot map screenshot buffer memory!" );
+						screenshot_event_error		= true;
+						screenshot_event_message	= "Internal error: Cannot map buffer data.";
+						screenshot_state			= vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT;
+					}
+				}
 			}
 
 			if( screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::WAITING_EVENT_REPORT ) {
@@ -3365,7 +3369,7 @@ bool vk2d::_internal::WindowImpl::ReCreateSwapchain()
 
 bool vk2d::_internal::WindowImpl::ReCreateScreenshotResources()
 {
-	while( screenshot_being_saved ) {
+	while( screenshot_state == vk2d::_internal::WindowImpl::ScreenshotState::WAITING_FILE_WRITE ) {
 		std::this_thread::sleep_for( std::chrono::microseconds( 10 ) );
 	}
 
@@ -3785,7 +3789,6 @@ void vk2d::_internal::WindowImpl::HandleScreenshotEvent()
 	}
 
 	screenshot_save_path			= "";
-	screenshot_save_data			= {};
 	screenshot_event_error			= false;
 	screenshot_event_message		= "";
 	screenshot_state				= vk2d::_internal::WindowImpl::ScreenshotState::IDLE;
@@ -4130,7 +4133,7 @@ vk2d::_internal::InstanceImpl * vk2d::_internal::CursorImpl::GetInstance()
 	return instance;
 }
 
-const std::vector<vk2d::Color8> & vk2d::_internal::CursorImpl::GetPixelData()
+const std::vector<vk2d::Color8> & vk2d::_internal::CursorImpl::GetTexelData()
 {
 	return pixel_data;
 }
@@ -4195,40 +4198,84 @@ void vk2d::_internal::MonitorImpl::SetGamma(
 	);
 }
 
-vk2d::GammaRamp vk2d::_internal::MonitorImpl::GetGammaRamp()
+
+
+namespace vk2d {
+namespace _internal {
+constexpr float GAMMA_MULTIPLIER = float( 65536 - 256 );
+} // _internal
+} // vk2d
+
+
+
+std::vector<vk2d::GammaRampNode> vk2d::_internal::MonitorImpl::GetGammaRamp()
 {
-	auto glfwRamp		= glfwGetGammaRamp( monitor );
-	vk2d::GammaRamp		ret {};
-	ret.count			= glfwRamp->size;
-	ret.red.reserve( ret.count );
-	ret.green.reserve( ret.count );
-	ret.blue.reserve( ret.count );
-	for( uint32_t i = 0; i < ret.count; ++i ) {
-		ret.red.push_back( glfwRamp->red[ i ] );
-		ret.green.push_back( glfwRamp->green[ i ] );
-		ret.blue.push_back( glfwRamp->blue[ i ] );
+	auto glfwRamp						= glfwGetGammaRamp( monitor );
+	std::vector<vk2d::GammaRampNode>	ret {};
+	ret.reserve( glfwRamp->size );
+	for( size_t i = 0; i < size_t( glfwRamp->size ); ++i ) {
+		ret.push_back(
+			{
+				glfwRamp->red[ i ] / vk2d::_internal::GAMMA_MULTIPLIER,
+				glfwRamp->green[ i ] / vk2d::_internal::GAMMA_MULTIPLIER,
+				glfwRamp->blue[ i ] / vk2d::_internal::GAMMA_MULTIPLIER
+			}
+		);
 	}
 	return ret;
 }
 
 void vk2d::_internal::MonitorImpl::SetGammaRamp(
-	const vk2d::GammaRamp		&	ramp
+	const std::vector<vk2d::GammaRampNode>		&	ramp
 )
 {
-	auto modifiable_ramp = ramp;
+	if( ramp.size() < 2 ) return;
 
-	if( ( modifiable_ramp.count != uint32_t( modifiable_ramp.red.size() ) ) ||
-		( modifiable_ramp.count != uint32_t( modifiable_ramp.green.size() ) ) ||
-		( modifiable_ramp.count != uint32_t( modifiable_ramp.blue.size() ) ) ) {
-		return;
+	size_t glfw_ramp_node_count = 0;
+	{
+		auto glfw_original_ramp = glfwGetGammaRamp( monitor );
+		if( !glfw_original_ramp ) {
+			return;
+		}
+		glfw_ramp_node_count = glfw_original_ramp->size;
+
+		if( glfw_ramp_node_count < 2 ) return;
+	}
+	std::vector<uint16_t> glfw_ramp_red( glfw_ramp_node_count );
+	std::vector<uint16_t> glfw_ramp_green( glfw_ramp_node_count );
+	std::vector<uint16_t> glfw_ramp_blue( glfw_ramp_node_count );
+
+	// Need to match the original node count regardless of input
+	// ramp node count so we do some linear interpolation here.
+	{
+		auto ramp_nodes		= ramp.size();
+		auto monitor_nodes	= glfw_ramp_node_count;
+
+		float difference	= float( ramp_nodes - 1 ) / float( monitor_nodes - 1 );
+
+		for( int i = 0; i < monitor_nodes - 1; ++i ) {
+			float	offset			= i * difference;
+			size_t	node_index		= size_t( std::floor( offset ) );
+			float	local_offset	= offset - float( node_index );
+			auto	node_0			= ramp[ node_index ];
+			auto	node_1			= ramp[ std::min( node_index + 1, ramp_nodes - 1 ) ];
+
+			glfw_ramp_red[ i ]		= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ( ( 1.0f - local_offset ) * node_0.red + local_offset * node_1.red ) );
+			glfw_ramp_green[ i ]	= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ( ( 1.0f - local_offset ) * node_0.green + local_offset * node_1.green ) );
+			glfw_ramp_blue[ i ]		= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ( ( 1.0f - local_offset ) * node_0.blue + local_offset * node_1.blue ) );
+		}
+		glfw_ramp_red.back()		= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ramp.back().red );
+		glfw_ramp_green.back()		= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ramp.back().green );
+		glfw_ramp_blue.back()		= uint16_t( vk2d::_internal::GAMMA_MULTIPLIER * ramp.back().blue );
 	}
 
-	GLFWgammaramp glfwRamp {};
-	glfwRamp.size		= modifiable_ramp.count;
-	glfwRamp.red		= modifiable_ramp.red.data();
-	glfwRamp.green		= modifiable_ramp.green.data();
-	glfwRamp.blue		= modifiable_ramp.blue.data();
-	glfwSetGammaRamp( monitor, &glfwRamp );
+	GLFWgammaramp glfw_gamma_ramp {};
+	glfw_gamma_ramp.size	= (unsigned int)( glfw_ramp_node_count );
+	glfw_gamma_ramp.red		= glfw_ramp_red.data();
+	glfw_gamma_ramp.green	= glfw_ramp_green.data();
+	glfw_gamma_ramp.blue	= glfw_ramp_blue.data();
+
+	glfwSetGammaRamp( monitor, &glfw_gamma_ramp );
 }
 
 bool vk2d::_internal::MonitorImpl::IsGood()

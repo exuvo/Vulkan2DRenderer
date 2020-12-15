@@ -1848,7 +1848,7 @@ bool vk2d::_internal::InstanceImpl::CreateDefaultSampler()
 	sampler_create_info.address_mode_u					= vk2d::SamplerAddressMode::REPEAT;
 	sampler_create_info.address_mode_v					= vk2d::SamplerAddressMode::REPEAT;
 	sampler_create_info.border_color					= { 0.0f, 0.0f, 0.0f, 1.0f };
-	sampler_create_info.mipmap_enable					= true;
+	sampler_create_info.anisotropy_enable				= true;
 	sampler_create_info.mipmap_max_anisotropy			= 16.0f;
 	sampler_create_info.mipmap_level_of_detail_bias		= 0.0f;
 	sampler_create_info.mipmap_min_level_of_detail		= 0.0f;
@@ -1873,7 +1873,7 @@ bool vk2d::_internal::InstanceImpl::CreateBlurSampler()
 		sampler_create_info.address_mode_u					= vk2d::SamplerAddressMode::CLAMP_TO_EDGE;
 		sampler_create_info.address_mode_v					= vk2d::SamplerAddressMode::CLAMP_TO_EDGE;
 		sampler_create_info.border_color					= { 0.0f, 0.0f, 0.0f, 1.0f };
-		sampler_create_info.mipmap_enable					= false;
+		sampler_create_info.anisotropy_enable				= false;
 		sampler_create_info.mipmap_max_anisotropy			= 1.0f;
 		sampler_create_info.mipmap_level_of_detail_bias		= 0.0f;
 		sampler_create_info.mipmap_min_level_of_detail		= 0.0f;
@@ -2830,12 +2830,12 @@ void UpdateMonitorLists(
 		std::string					name					= glfwGetMonitorName( monitor );
 		vk2d::MonitorVideoMode		current_video_mode		= {};
 		{
-			auto glfw_current_video_mode	= glfwGetVideoMode( monitor );
-			current_video_mode.size			= { uint32_t( glfw_current_video_mode->width ), uint32_t( glfw_current_video_mode->height ) };
-			current_video_mode.redBits		= uint32_t( glfw_current_video_mode->redBits );
-			current_video_mode.greenBits	= uint32_t( glfw_current_video_mode->greenBits );
-			current_video_mode.blueBits		= uint32_t( glfw_current_video_mode->blueBits );
-			current_video_mode.refreshRate	= uint32_t( glfw_current_video_mode->refreshRate );
+			auto glfw_current_video_mode		= glfwGetVideoMode( monitor );
+			current_video_mode.resolution		= { uint32_t( glfw_current_video_mode->width ), uint32_t( glfw_current_video_mode->height ) };
+			current_video_mode.red_bit_count	= uint32_t( glfw_current_video_mode->redBits );
+			current_video_mode.green_bit_count	= uint32_t( glfw_current_video_mode->greenBits );
+			current_video_mode.blue_bit_count	= uint32_t( glfw_current_video_mode->blueBits );
+			current_video_mode.refresh_rate		= uint32_t( glfw_current_video_mode->refreshRate );
 		}
 
 		std::vector<vk2d::MonitorVideoMode> video_modes		= {};
@@ -2844,11 +2844,11 @@ void UpdateMonitorLists(
 			auto glfw_video_modes = glfwGetVideoModes( monitor, &vidModeCount );
 			video_modes.resize( vidModeCount );
 			for( int i = 0; i < vidModeCount; ++i ) {
-				video_modes[ i ].size			= { uint32_t( glfw_video_modes[ i ].width ), uint32_t( glfw_video_modes[ i ].height ) };
-				video_modes[ i ].redBits		= glfw_video_modes[ i ].redBits;
-				video_modes[ i ].greenBits		= glfw_video_modes[ i ].greenBits;
-				video_modes[ i ].blueBits		= glfw_video_modes[ i ].blueBits;
-				video_modes[ i ].refreshRate	= glfw_video_modes[ i ].refreshRate;
+				video_modes[ i ].resolution			= { uint32_t( glfw_video_modes[ i ].width ), uint32_t( glfw_video_modes[ i ].height ) };
+				video_modes[ i ].red_bit_count		= glfw_video_modes[ i ].redBits;
+				video_modes[ i ].green_bit_count	= glfw_video_modes[ i ].greenBits;
+				video_modes[ i ].blue_bit_count		= glfw_video_modes[ i ].blueBits;
+				video_modes[ i ].refresh_rate		= glfw_video_modes[ i ].refreshRate;
 			};
 		}
 
