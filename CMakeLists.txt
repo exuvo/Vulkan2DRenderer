@@ -204,7 +204,7 @@ set_target_properties(VK2D
 )
 
 # Internal includes
-target_include_directories(VK2D PRIVATE "${PROJECT_SOURCE_DIR}/Source/")
+target_include_directories(VK2D PUBLIC "${PROJECT_SOURCE_DIR}/Source/")
 target_include_directories(VK2D PUBLIC "${PROJECT_SOURCE_DIR}/Include/")
 target_include_directories(VK2D PRIVATE "${PROJECT_SOURCE_DIR}/Shaders/")
 
