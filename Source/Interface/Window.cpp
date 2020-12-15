@@ -846,9 +846,9 @@ void vk2d::_internal::glfwWindowIconifyCallback(
 	auto impl = reinterpret_cast<vk2d::_internal::WindowImpl*>( glfwGetWindowUserPointer( glfwWindow ) );
 
 	if( iconify ) {
-		impl->is_minimized			= true;
+		impl->is_iconified			= true;
 	} else {
-		impl->is_minimized			= false;
+		impl->is_iconified			= false;
 		impl->should_reconstruct	= true;
 	}
 	if( impl->event_handler ) {
@@ -1102,7 +1102,7 @@ vk2d::_internal::WindowImpl::~WindowImpl()
 
 	vkDestroyFence(
 		vk_device,
-		vk_aquire_image_fence,
+		vk_acquire_image_fence,
 		nullptr
 	);
 
@@ -1172,75 +1172,115 @@ bool vk2d::_internal::WindowImpl::ShouldClose()
 }
 
 
-bool vk2d::_internal::AquireImage(
+bool vk2d::_internal::AcquireImage(
 	vk2d::_internal::WindowImpl		*	impl,
 	VkPhysicalDevice					physical_device,
 	VkDevice							device,
 	vk2d::_internal::ResolvedQueue	&	primary_render_queue,
 	uint32_t							nested_counter				= 0 )
 {
-	auto result = vkAcquireNextImageKHR(
-		device,
-		impl->vk_swapchain,
-		UINT64_MAX,
-		VK_NULL_HANDLE,
-		impl->vk_aquire_image_fence,
-		&impl->next_image
-	);
-	if( result != VK_SUCCESS ) {
-		if( result == VK_SUBOPTIMAL_KHR ) {
-			// Image aquired but is not optimal, continue but recreate swapchain next time we begin the render again.
-			impl->instance->Report( result, "Aquired suboptimal image, continue but recreate swapchain next frame." );
-			impl->should_reconstruct		= true;
-		} else if( result == VK_ERROR_OUT_OF_DATE_KHR ) {
-			// Image was not aquired so we cannot present anything until we recreate the swapchain.
-			impl->instance->Report( result, "Could not aquire image, out of date swapchain, recreate swapchain now." );
-			if( nested_counter ) {
-				// Breaking out of nested call here, we tried aquiring an image twice before
-				// now and it didn't work so we can assume it will not work and we can give up here.
-				impl->instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Could not aquire image after retry, out of date swapchain, Cannot recreate swapchain!" );
-				return false;
+	auto instance = impl->instance;
+
+	struct TryAcquireResult
+	{
+		uint32_t		new_image;
+		VkResult		vk_result;
+	};
+
+	auto TryAcquireAndWaitAvailable = [&]() -> TryAcquireResult
+	{
+		uint32_t new_image_index = UINT32_MAX;
+		auto acquire_result = vkAcquireNextImageKHR(
+			device,
+			impl->vk_swapchain,
+			UINT64_MAX,
+			VK_NULL_HANDLE,
+			impl->vk_acquire_image_fence,
+			&new_image_index
+		);
+
+		// Only wait for image availability on success or partial success.
+		// This should cover all cases as VkResult positive values are
+		// partial success and negative values are errors.
+		if( acquire_result >= VK_SUCCESS ) {
+			{
+				auto sync_result = vkWaitForFences(
+					device,
+					1, &impl->vk_acquire_image_fence,
+					VK_TRUE,
+					UINT64_MAX
+				);
+				if( sync_result != VK_SUCCESS ) {
+					instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot acquire next swapchain image, error waiting for fence!" );
+					return { UINT32_MAX, acquire_result };
+				}
 			}
-			// Cannot continue before we recreate the swapchain
+			{
+				auto sync_result = vkResetFences(
+					device,
+					1, &impl->vk_acquire_image_fence
+				);
+				if( sync_result != VK_SUCCESS ) {
+					instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot acquire next swapchain image, error resetting fence!" );
+					return { UINT32_MAX, acquire_result };
+				}
+			}
+		}
+		return { new_image_index, acquire_result };
+	};
+
+	auto result = TryAcquireAndWaitAvailable();
+	switch( result.vk_result ) {
+		case VK_SUCCESS:
+		{
+			impl->next_image = result.new_image;
+			return true;
+		}
+
+		case VK_SUBOPTIMAL_KHR:
+		{
+			// Image acquired but is not optimal, continue but recreate swapchain next time we begin the render again.
+			impl->instance->Report( result.vk_result, "Acquired suboptimal swapchain image, continuing and recreating swapchain next frame." );
+
+			impl->next_image = result.new_image;
+			impl->should_reconstruct = true;
+			return true;
+		}
+
+		case VK_ERROR_OUT_OF_DATE_KHR:
+		{
+			// Image was not acquired so we cannot present anything until we recreate the swapchain.
+			impl->instance->Report( result.vk_result, "Could not acquire swapchain image, out of date swapchain, trying to recreate swapchain now." );
+
 			if( !impl->RecreateWindowSizeDependantResources() ) {
 				impl->instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot recreate window resources after resizing window!" );
 				return false;
 			}
-			// After recreating the swapchain and resources, try to aquire
-			// next image again, if that fails we should stop trying.
-			if( !AquireImage(
-				impl,
-				physical_device,
-				device,
-				primary_render_queue,
-				++nested_counter
-			) ) {
-				impl->instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot aquire next image for window!" );
+
+			// Retry getting next swapchain image.
+			auto retry_result = TryAcquireAndWaitAvailable();
+			if( retry_result.vk_result == VK_SUCCESS ) {
+				impl->instance->Report( retry_result.vk_result, "Successfully recreated swapchain and aquired swapchain image after recreating swapchain." );
+				impl->next_image = retry_result.new_image;
+				return true;
+			} else {
+				impl->instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Error trying to get swapchain image after swapchain recreation. Aborting now!" );
 				return false;
 			}
-			return true;
-		} else {
-			impl->instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot aquire next swapchain image!" );
-
-			return false;
 		}
+		default:
+			assert( 0 && "Unhandled case." );
+			break;
 	}
-	vkWaitForFences(
-		device,
-		1, &impl->vk_aquire_image_fence,
-		VK_TRUE,
-		UINT64_MAX
-	);
-	vkResetFences(
-		device,
-		1, &impl->vk_aquire_image_fence
-	);
 
-	return true;
+	return false;
 }
 
 bool vk2d::_internal::WindowImpl::BeginRender()
 {
+	// Skip if the window is iconified, swapchain images might not be available.
+	if( is_iconified ) return true;
+
 	// Calls to BeginRender() and EndRender() should alternate, check it's our turn
 	if( next_render_call_function != vk2d::_internal::NextRenderCallFunction::BEGIN ) {
 		instance->Report( vk2d::ReportSeverity::NON_CRITICAL_ERROR, "'Window::BeginRender()' Called twice in a row!" );
@@ -1256,18 +1296,18 @@ bool vk2d::_internal::WindowImpl::BeginRender()
 		}
 	}
 
-	// Aquire a new image from the presentation engine. This
+	// Acquire a new image from the presentation engine. This
 	// determines which "swap" we're going to write to.
 	// Everything is double or multi-buffered, eg. command buffers,
 	// framebuffers...
 	{
-		if( !AquireImage(
+		if( !AcquireImage(
 			this,
 			vk_physical_device,
 			vk_device,
 			primary_render_queue
 		) ) {
-			instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot aquire next swapchain image!" );
+			instance->Report( vk2d::ReportSeverity::CRITICAL_ERROR, "Internal error: Cannot acquire next swapchain image!" );
 			return false;
 		}
 	}
@@ -1389,6 +1429,9 @@ bool vk2d::_internal::WindowImpl::BeginRender()
 
 bool vk2d::_internal::WindowImpl::EndRender()
 {
+	// Skip if the window is iconified, swapchain images might not be available.
+	if( is_iconified ) return true;
+
 	// Calls to BeginRender() and EndRender() should alternate, check it's our turn
 	if( next_render_call_function != vk2d::_internal::NextRenderCallFunction::END ) {
 		instance->Report( vk2d::ReportSeverity::WARNING, "'Window::EndRender()' Called twice in a row!" );
@@ -2114,6 +2157,9 @@ void vk2d::_internal::WindowImpl::DrawTriangleList(
 	vk2d::Sampler							*	sampler
 )
 {
+	// Skip if the window is iconified, swapchain images might not be available.
+	if( is_iconified ) return;
+
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -2264,6 +2310,9 @@ void vk2d::_internal::WindowImpl::DrawLineList(
 	float										line_width
 )
 {
+	// Skip if the window is iconified, swapchain images might not be available.
+	if( is_iconified ) return;
+
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -2372,6 +2421,9 @@ void vk2d::_internal::WindowImpl::DrawPointList(
 	vk2d::Sampler							*	sampler
 )
 {
+	// Skip if the window is iconified, swapchain images might not be available.
+	if( is_iconified ) return;
+
 	auto command_buffer					= vk_render_command_buffers[ next_image ];
 
 	auto vertex_count	= uint32_t( vertices.size() );
@@ -3546,7 +3598,7 @@ bool vk2d::_internal::WindowImpl::CreateWindowSynchronizationPrimitives()
 		vk_device,
 		&fence_create_info,
 		nullptr,
-		&vk_aquire_image_fence
+		&vk_acquire_image_fence
 	);
 	if( result != VK_SUCCESS ) {
 		instance->Report( result, "Internal error: Cannot create image aquisition fence!" );
@@ -4270,7 +4322,7 @@ void vk2d::_internal::MonitorImpl::SetGammaRamp(
 	}
 
 	GLFWgammaramp glfw_gamma_ramp {};
-	glfw_gamma_ramp.size	= (unsigned int)( glfw_ramp_node_count );
+	glfw_gamma_ramp.size	= (unsigned int)glfw_ramp_node_count;
 	glfw_gamma_ramp.red		= glfw_ramp_red.data();
 	glfw_gamma_ramp.green	= glfw_ramp_green.data();
 	glfw_gamma_ramp.blue	= glfw_ramp_blue.data();
