@@ -3,6 +3,7 @@
 #include "Core/Common.h"
 
 #include <initializer_list>
+#include <algorithm>
 
 
 
@@ -45,158 +46,9 @@ public:
 	vk2d::ColorBase<T> & operator=( const vk2d::ColorBase<T> & other )	= default;
 	vk2d::ColorBase<T> & operator=( vk2d::ColorBase<T> && other )		= default;
 	
-	static constexpr ColorBase<T> TRANSPARENT() {
-		return ColorBase<T>{ 0, 0, 0, 0 };
-	};
-	
-	static constexpr ColorBase<T> WHITE() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, max, max, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 1.0, 1.0, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> BLACK() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, 0, 0, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 0.0, 0.0, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> GREY() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max / 2, max / 2, max / 2, max };
-		} else { 
-			return ColorBase<T>{ 0.5, 0.5, 0.5, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> RED() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, 0, 0, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 0.0, 0.0, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> SCARLET() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, (52 * max) / 255, (28 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 0.203, 0.109, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> PINK() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, (105 * max) / 255, (180 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 0.411, 0.705, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> MAGENTA() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, 0, max, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 0.0, 1.0, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> PURPLE() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ (160 * max) / 255, (32 * max) / 255, (240 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 0.627, 0.125, 0.941, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> VIOLET() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ (238 * max) / 255, (130 * max) / 255, (238 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 0.933, 0.509, 0.933, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> GREEN() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, max, 0, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 1.0, 0.0, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> LIME() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ (50 * max) / 255, (205 * max) / 255, (50 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 0.196, 0.803, 0.196, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> OLIVE() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ (107 * max) / 255, (142 * max) / 255, (35 * max) / 255, max };
-		} else { 
-			return ColorBase<T>{ 0.419, 0.556, 0.137, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> BLUE() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, 0, max, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 0.0, 1.0, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> NAVY() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, 0, max / 2, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 0.0, 0.5, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> CYAN() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, max, max, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 1.0, 1.0, 1.0 };
-		}
-	};
-	static constexpr ColorBase<T> TEAL() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ 0, max / 2, max / 2, max };
-		} else { 
-			return ColorBase<T>{ 0.0, 0.5, 0.5, 1.0 };
-		}
-	};
-	
-	static constexpr ColorBase<T> YELLOW() {
-		if constexpr (std::is_integral_v<T>) {
-			T max = std::numeric_limits<T>::max();
-			return ColorBase<T>{ max, max, 0, max };
-		} else { 
-			return ColorBase<T>{ 1.0, 1.0, 0.0, 1.0 };
-		}
-	};
-	
-
 	/// @brief		Add color channels directly by another color and apply to itself. eg. when using
 	///				vk2d::Colorf {1.0, 1.0, 0.5, 0.5} + {0.0, 2.0, 0.5, 0.5} will result in
 	///				{1.0, 3.0, 1.0, 1.0} color.
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. No extra operations are done to
 	///				types when added together, eg. Add 0.5 float to 128 integral value will result in
@@ -218,7 +70,6 @@ public:
 	///				useful when you wish to disable some color channels or intensify them. For example,
 	///				when using vk2d::Colorf, {1.0, 0.0, 5.0, 1.0} * {1.0, 5.0, 2.0, 2.0} will result in
 	///				{1.0, 0.0, 10.0, 2.0}.
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. Useful if primary color is integer
 	///				type and you wish to multiply it with float or double value.
@@ -237,7 +88,6 @@ public:
 	///	@brief		Add color channels directly by another color. eg.when using vk2d::Colorf
 	///				{1.0, 1.0, 0.5, 0.5} + {0.0, 2.0, 0.5, 0.5} will result in {1.0, 3.0, 1.0, 1.0}
 	///				color.
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. No extra operations are done to
 	///				types when added together, eg. Add 0.5 float to 128 integral value will result in
@@ -257,7 +107,6 @@ public:
 	/// @brief		Multiply color channels directly by another color. This is useful when you with to
 	///				disable some color channels or intensify them. For example, when using vk2d::Colorf,
 	///				{1.0, 0.0, 5.0, 1.0} * {1.0, 5.0, 2.0, 2.0} will result in {1.0, 0.0, 10.0, 2.0}.
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. Useful if primary color is integer
 	///				type and you wish to multiply it with float or double value.
@@ -286,7 +135,6 @@ public:
 	///				Blending works for integer types as well, for example vk2d::Color8 channel value 128
 	///				is considered equal to vk2d::Colorf channel value 0.5 by this function. This makes
 	///				blending between integer colors easy.
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. Useful when you want to mix integer
 	///				colors with a float for example.
@@ -346,8 +194,6 @@ public:
 	}
 
 	/// @brief		Linear color blending on all channels using single value.
-	/// 
-	/// @note		Multithreading: Any thread.
 	/// @tparam		OtherT
 	///				Another type can be used for the other parameter. Useful when you want to mix integer
 	///				colors with a float for example.
