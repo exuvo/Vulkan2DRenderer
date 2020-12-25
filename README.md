@@ -48,9 +48,11 @@ Internally workloads are automatically grouped to create more efficient submissi
 :exclamation: You will need to use Git, direct download from GitHub will not work because of dependencies. :exclamation:
 
 Prior to building this library on any platform you will need:
-- Git 2.28 or newer
+- Git 2.20 or newer
 - CMake 3.16 or newer
 - Vulkan SDK 1.2 or newer
+
+If using the build tool you will need (recommended for new users):
 - Python 3.8 or newer
 
 If you're building the documentation you will also need these (disabled by default):
@@ -66,13 +68,26 @@ git clone https://github.com/Noxagonal/Vulkan2DRenderer
 
 ### Compiling the sources
 
-Python script is provided to help compile the project. Navigate to the `Vulkan2DRenderer` folder and simply run
-`Build.bat` on Windows or `Build.sh` on Linux.
-To get started quickly, hit `Q` and press enter, this will generate project files in `build` folder, compile
-the project and on Windows it will also create an `install` folder which will contain everything you need
-to use this library on your project.
+There are couple of ways to compile this library, you can use standard CMake or you can use the provided build tool.
 
-Creating project files and compiling the sources manually is of course possible via CMake if you prefer.
+#### Using the build tool
+
+Navigate to the `Vulkan2DRenderer` folder and simply run `Build.bat` on Windows or `Build.py` on Linux.
+To get started quickly, you can select the quick build option, this will generate the project files in `tool_build/Release`
+and `tool_build/Debug` folders and compiles the project, on windows this library is also installed into a folder.
+Please note that the included build tool generates a `tool_build` folder and is reserved for the built tool itself.
+
+##### Windows specifics
+
+On Windows installing will create an `install` folder which will contain everything you need to use this library on
+your project. You will have to manually link it to your project and move the `VK2D.dll` and `VK2D_d.dll` files somewhere
+where your executable can see it, usually to your project's working directory. The `VK2D.dll` is the release version
+and the `VK2D_d.dll` is the debug version of this library.
+
+##### Linux specifics
+
+On Linux installing requires superuser priviledges so you need to do this separately, the build tool will build the project
+files and compile but it will not install this library for you.
 
 ------
 

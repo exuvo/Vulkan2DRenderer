@@ -14,7 +14,7 @@ function(BuildExample EXECUTABLE_NAME)
 	)
 	target_link_libraries("${EXECUTABLE_NAME}"
 		PUBLIC
-			VK2D
+			${VK2D_NAME}
 	)
 	set_target_properties("${EXECUTABLE_NAME}"
 		PROPERTIES
@@ -25,14 +25,17 @@ function(BuildExample EXECUTABLE_NAME)
 			RUNTIME_OUTPUT_DIRECTORY	"${PROJECT_BINARY_DIR}/Bin"
 	)
 	add_dependencies("${EXECUTABLE_NAME}"
-		VK2D
+		${VK2D_NAME}
 	)
 
 endfunction()
 
 
 # Create project/executable for each .cpp file in this directory.
-file(GLOB ExampleFiles "*.cpp")
+file(GLOB ExampleFiles
+	CONFIGURE_DEPENDS
+	"*.cpp"
+)
 foreach(ExampleFile ${ExampleFiles})
 	get_filename_component(ExampleFileName ${ExampleFile} NAME_WE)
 	BuildExample(${ExampleFileName})

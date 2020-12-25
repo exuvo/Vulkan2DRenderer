@@ -2,6 +2,7 @@
 #build and install folders
 /build/*
 /install/*
+/build_tool/*
 
 # Prerequisites
 *.d
