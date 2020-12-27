@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <cmath>
 #include <assert.h>
+#include <ostream>
 
 
 
@@ -32,11 +33,12 @@ public:
 	Vector3Base( vk2d::Vector3Base<T> && other )								= default;
 	Vector3Base( const std::initializer_list<T> & elements )
 	{
-		assert( elements.size() <= 3 );
+		auto s = elements.size();
+		assert( s <= 3 );
 		auto e = elements.begin();
-		if( e ) x = *e++;
-		if( e ) y = *e++;
-		if( e ) z = *e++;
+		x = ( s >= 1 ) ? *e++ : T{};
+		y = ( s >= 2 ) ? *e++ : T{};
+		z = ( s >= 3 ) ? *e++ : T{};
 	}
 
 	vk2d::Vector3Base<T> & operator=( const vk2d::Vector3Base<T> & other )		= default;
@@ -229,7 +231,7 @@ public:
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Vector3Base<T>& v) {
-	return os << v.x << "," << v.y << "," << v.z;
+	return os << "[" << v.x << ", " << v.y << ", " << v.z << "]";
 }
 
 /// @brief		3D vector with float precision.

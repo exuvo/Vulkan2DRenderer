@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <cmath>
 #include <assert.h>
+#include <ostream>
 
 
 
@@ -33,12 +34,13 @@ public:
 	Vector4Base( vk2d::Vector4Base<T> && other )								= default;
 	Vector4Base( const std::initializer_list<T> & elements )
 	{
-		assert( elements.size() <= 4 );
+		auto s = elements.size();
+		assert( s <= 4 );
 		auto e = elements.begin();
-		if( e ) x = *e++;
-		if( e ) y = *e++;
-		if( e ) z = *e++;
-		if( e ) w = *e++;
+		x = ( s >= 1 ) ? *e++ : T{};
+		y = ( s >= 2 ) ? *e++ : T{};
+		z = ( s >= 3 ) ? *e++ : T{};
+		w = ( s >= 4 ) ? *e++ : T{};
 	}
 
 	vk2d::Vector4Base<T> & operator=( const vk2d::Vector4Base<T> & other )		= default;
@@ -239,7 +241,7 @@ public:
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const Vector4Base<T>& v) {
-	return os << v.x << "," << v.y << "," << v.z << "," << v.w;
+	return os << "[" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << "]";
 }
 
 /// @brief		4D vector with float precision.

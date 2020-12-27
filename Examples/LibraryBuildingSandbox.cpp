@@ -42,6 +42,24 @@ public:
 
 
 
+template<typename T>
+std::ostream& operator<<( std::ostream & os, const std::vector<T> & v )
+{
+	auto vs = std::size( v );
+	if( vs ) {
+		os << "[";
+		for( size_t i = 0; i < vs - 1; ++i ) {
+			os << v[ i ] << ", ";
+		}
+		os << v.back() << "]";
+	} else {
+		os << "[]";
+	}
+	return os;
+}
+
+
+
 // Simple class to calculate delta time.
 class DeltaTimeCounter
 {
@@ -96,16 +114,33 @@ int main()
 	auto color1 = vk2d::Colorf( 0.25f, 1.0f, 0.5f, 0.5f );
 	auto color2 = vk2d::Colorf( 1.0f, 0.25f, 0.8f, 0.8f );
 	auto colorf = color1.BlendUsingAlpha( color2 );
-	std::cout << colorf.r << ", " << colorf.g << ", " << colorf.b << ", " << colorf.a << "\n";
 
 	auto font = resource_manager->LoadFontResource(
-		"../../Data/Fonts/Ethnocentric/ethnocentric rg.ttf"
+		"../../Data/Fonts/ubuntu-font-family-0.83/Ubuntu-M.ttf"
 	);
-	auto text = vk2d::GenerateTextMesh(
+
+	std::string text = "Testing...";
+	auto text_calculated_area = font->CalculateRenderedSize(
+		text,
+		0,
+		{ 2, 2 },
+		false,
+		0,
+		true
+	);
+	auto text_mesh = vk2d::GenerateTextMesh(
 		font,
 		{ 0, 0 },
-		"TestText"
+		text,
+		0,
+		{ 2, 2 },
+		false,
+		0,
+		true
 	);
+
+	std::vector<vk2d::Vector4f> stl_vector { {}, { 10.0f, 10.4f, 10.04f }, { 50.1f, float( vk2d::PI ), 40.03f } };
+	std::cout << stl_vector << "\n";
 
 	auto red_circle				= vk2d::GenerateEllipseMesh(
 		{ -7, -7, 7, 7 }
@@ -116,7 +151,6 @@ int main()
 	);
 	red_circle.SetVertexColor( { 1.0f, 0.4f, 0.3f, 1.0f } );
 	red_line.SetVertexColor( { 1.0f, 0.4f, 0.3f, 0.05f } );
-
 
 	auto lattice = vk2d::GenerateLatticeMesh(
 		{ -150, -150, 150, 150 },
@@ -195,8 +229,9 @@ int main()
 			);
 
 			window1->DrawMesh( lattice );
-			window1->DrawMesh( text );
-			window1->DrawRectangle( text.aabb, false );
+			window1->DrawMesh( text_mesh );
+			window1->DrawRectangle( text_mesh.aabb, false );
+			//window1->DrawRectangle( text_calculated_area, false );
 		}
 
 		if( !window1->EndRender() ) return -1;
