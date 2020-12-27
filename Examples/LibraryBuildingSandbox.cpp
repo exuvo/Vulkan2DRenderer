@@ -132,6 +132,7 @@ int main()
 		font,
 		{ 0, 0 },
 		text,
+		vk2d::Colorf::WHITE(),
 		0,
 		{ 2, 2 },
 		false,
