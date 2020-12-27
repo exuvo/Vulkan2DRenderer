@@ -1198,8 +1198,8 @@ VK2D_API vk2d::Mesh VK2D_APIENTRY vk2d::GenerateTextMesh(
 		// Writing vertical text
 		{
 			auto gi = fi->GetGlyphInfo( font_face, text[ 0 ] );
-			ret.aabb.top_left		= gi->vertical_coords.top_left;
-			ret.aabb.bottom_right	= gi->vertical_coords.bottom_right;
+			ret.aabb.top_left		= location + gi->vertical_coords.top_left;
+			ret.aabb.bottom_right	= location + gi->vertical_coords.bottom_right;
 		}
 		for( auto c : text ) {
 			auto gi = fi->GetGlyphInfo( font_face, c );
@@ -1210,8 +1210,8 @@ VK2D_API vk2d::Mesh VK2D_APIENTRY vk2d::GenerateTextMesh(
 		// Writing horisontal text
 		{
 			auto gi = fi->GetGlyphInfo( font_face, text[ 0 ] );
-			ret.aabb.top_left		= gi->horisontal_coords.top_left;
-			ret.aabb.bottom_right	= gi->horisontal_coords.bottom_right;
+			ret.aabb.top_left		= location + gi->horisontal_coords.top_left;
+			ret.aabb.bottom_right	= location + gi->horisontal_coords.bottom_right;
 		}
 		for( auto c : text ) {
 			auto gi = fi->GetGlyphInfo( font_face, c );
