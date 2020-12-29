@@ -47,6 +47,12 @@ public:
 	vk2d::ColorBase<T> & operator=( const vk2d::ColorBase<T> & other )	= default;
 	vk2d::ColorBase<T> & operator=( vk2d::ColorBase<T> && other )		= default;
 
+	template<typename OtherT>
+	bool operator==( const vk2d::ColorBase<OtherT> & other )
+	{
+		return r == other.r && g == other.g && b == other.b && a == other.a;
+	}
+
 	/// @brief		Add color channels directly by another color and apply to itself. eg. when using
 	///				vk2d::Colorf {1.0, 1.0, 0.5, 0.5} + {0.0, 2.0, 0.5, 0.5} will result in
 	///				{1.0, 3.0, 1.0, 1.0} color.
