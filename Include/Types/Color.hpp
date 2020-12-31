@@ -370,6 +370,11 @@ private:
 	};
 };
 
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const ColorBase<T>& c) {
+	return os << "[" << c.r << ", " << c.g << ", " << c.b << ", " << c.a << "]";
+}
+
 /// @brief		float per color channel.
 using Colorf			= vk2d::ColorBase<float>;
 
