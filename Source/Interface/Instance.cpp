@@ -394,9 +394,30 @@ vk2d::_internal::InstanceImpl::InstanceImpl(
 	#if VK2D_BUILD_OPTION_VULKAN_COMMAND_BUFFER_CHECKMARKS && VK2D_BUILD_OPTION_VULKAN_VALIDATION && VK2D_DEBUG_ENABLE
 	device_extensions.push_back( VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME );
 	#endif
+	
+	if( instance_create_info.instance_extensions_function ) {
+		
+		uint32_t avalibleExtensionCount = 0;
+		vkEnumerateInstanceExtensionProperties(nullptr, &avalibleExtensionCount, nullptr);
+		std::vector<VkExtensionProperties> available_instance_extensions {avalibleExtensionCount};
+		vkEnumerateInstanceExtensionProperties(nullptr, &avalibleExtensionCount, available_instance_extensions.data());
+		
+		instance_create_info.instance_extensions_function(available_instance_extensions, instance_extensions);
+	}
 
 	if( !CreateInstance() ) return;
 	if( !PickPhysicalDevice() ) return;
+	
+	if( instance_create_info.device_extensions_function ) {
+		
+		uint32_t avalibleExtensionCount = 0;
+		vkEnumerateDeviceExtensionProperties(vk_physical_device, nullptr, &avalibleExtensionCount, nullptr);
+		std::vector<VkExtensionProperties> available_device_extensions {avalibleExtensionCount};
+		vkEnumerateDeviceExtensionProperties(vk_physical_device, nullptr, &avalibleExtensionCount, available_device_extensions.data());
+		
+		instance_create_info.device_extensions_function(available_device_extensions, device_extensions);
+	}
+	
 	if( !CreateDeviceAndQueues() ) return;
 
 	#if VK2D_BUILD_OPTION_VULKAN_COMMAND_BUFFER_CHECKMARKS && VK2D_BUILD_OPTION_VULKAN_VALIDATION && VK2D_DEBUG_ENABLE

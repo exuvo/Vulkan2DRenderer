@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vulkan/vulkan.h>
+
 #include "Core/Common.h"
 #include "Core/Version.hpp"
 
@@ -170,6 +172,14 @@ using PFN_VK2D_ReportFunction				= void( VK2D_APIENTRY* )(
 	vk2d::ReportSeverity					severity,
 	std::string_view						message );
 
+using PFN_InstanceExtensionsCallback				= void ( VK2D_APIENTRY* )(
+	const std::vector<VkExtensionProperties>& available_instance_extensions,
+	std::vector<const char*>& instance_extensions);
+
+using PFN_DeviceExtensionsCallback				= void ( VK2D_APIENTRY* )(
+	const std::vector<VkExtensionProperties>& available_device_extensions,
+	std::vector<const char*>& device_extensions);
+
 /// @brief		Function pointer type for monitor update callback.
 ///				Whenever a new monitor is plugged in or removed VK2D can report about
 ///				it through a callback function which signature matches this: <br>
@@ -211,6 +221,8 @@ struct InstanceCreateInfo {
 	vk2d::Version							engine_version					= {};			///< Version of your game engine, can be left empty.
 	vk2d::PFN_VK2D_ReportFunction			report_function					= {};			///< Function to relay VK2D system messages, if left empty VK2D prints to standard output.
 	uint32_t								resource_loader_thread_count	= UINT32_MAX;	///< VK2D loads all resources on a separate thread, this parameter allows the host application to control how many threads are used for this. Default = system thread count.
+	vk2d::PFN_InstanceExtensionsCallback instance_extensions_function = {};
+	vk2d::PFN_DeviceExtensionsCallback device_extensions_function = {};
 };
 
 /// @brief		Before you can use VK2D for creating windows or rendering you must
