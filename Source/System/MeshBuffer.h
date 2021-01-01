@@ -113,7 +113,7 @@ public:
 	// This gets the total amount of transformations already pushed in
 	uint32_t													GetTotalTransformationCount();
 
-private:
+public:
 	vk2d::_internal::MeshBuffer::MeshBlockLocationInfo			ReserveSpaceForMesh(
 		uint32_t												index_count,
 		uint32_t												vertex_count,
