@@ -3394,7 +3394,6 @@ bool vk2d::_internal::WindowImpl::ReCreateSwapchain()
 
 		// Get swapchain images and create image views
 		{
-			uint32_t swapchain_image_count = 0;
 			result = vkGetSwapchainImagesKHR(
 				vk_device,
 				vk_swapchain,
