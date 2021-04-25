@@ -37,7 +37,7 @@
 // Helps narrow down VK_ERROR_DEVICE_LOST problems.
 // This utilises Nvidia specific extension.
 // Used only if VK2D_BUILD_OPTION_VULKAN_VALIDATION == 1 and if VK2D_ENABLE_LIBRARY_DEBUG_FEATURES == 1
-#define VK2D_BUILD_OPTION_VULKAN_COMMAND_BUFFER_CHECKMARKS				1
+#define VK2D_BUILD_OPTION_VULKAN_COMMAND_BUFFER_CHECKMARKS				0
 
 // For finishing touches and to catch possible
 // performance issues. Prints more information about

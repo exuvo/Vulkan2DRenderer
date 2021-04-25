@@ -870,7 +870,7 @@ vk2d::Multisamples vk2d::_internal::InstanceImpl::GetAllSupportedMultisampling()
 
 vk2d::PFN_VK2D_ReportFunction vk2d::_internal::InstanceImpl::GetReportFunction() const
 {
-	VK2D_ASSERT_MAIN_THREAD( this );
+//	VK2D_ASSERT_MAIN_THREAD( this );
 
 	return report_function;
 }
